@@ -21,6 +21,20 @@ Aquí puedes revisar el [repositorio de los contratos](https://github.com/tetera
 
 ## Video
 
-[Revisa el video](https://www.youtube.com/@gilbertsahumada) con el paso a paso de todo lo que podrás hacer con este proyecto.
+[Revisa el video](https://youtu.be/IqgktInvvus) con el paso a paso de todo lo que podrás hacer con este proyecto.
+
+## Ejecución del Proyecto
+
+Para instalar las dependencias
+
+```
+yarn
+```
+
+Con el siguiente comando levantas el front-end 
+
+```
+yarn start
+```
 
 
