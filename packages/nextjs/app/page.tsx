@@ -1,66 +1,193 @@
 "use client";
 
-import Link from "next/link";
+import { useState } from "react";
 import type { NextPage } from "next";
+import { formatEther, parseEther } from "viem";
 import { useAccount } from "wagmi";
-import { BugAntIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
-import { Address } from "~~/components/scaffold-eth";
+import { IntegerInput } from "~~/components/scaffold-eth";
+import { useScaffoldReadContract } from "~~/hooks/scaffold-eth";
+import { useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 
 const Home: NextPage = () => {
   const { address: connectedAddress } = useAccount();
+  const [montoDeposito, setMontoDeposito] = useState<string | bigint>("");
+  const [montoWithdraw, setMontoWithdraw] = useState<string | bigint>("");
+
+  const { writeContractAsync: writeStaking } = useScaffoldWriteContract("Staking");
+  const { writeContractAsync: writeLiquidityUnstake } = useScaffoldWriteContract("LiquidUnstakePool");
+  const { writeContractAsync: writeWithdrawal } = useScaffoldWriteContract("Withdrawal");
+
+  const stake = async () => {
+    try {
+      await writeStaking({
+        functionName: "depositETH",
+        args: [connectedAddress],
+        value: BigInt(montoDeposito),
+      });
+    } catch (e) {
+      console.error("Error setting greeting:", e);
+    }
+  };
+
+  const stakeLiquidUnstakePool = async () => {
+    try {
+      await writeLiquidityUnstake({
+        functionName: "depositETH",
+        args: [connectedAddress],
+        value: BigInt(montoDeposito),
+      });
+    } catch (e) {
+      console.error("Error setting greeting:", e);
+    }
+  };
+
+  const withdrawLiquidityUnstake = async () => {
+    try {
+      await writeLiquidityUnstake({
+        functionName: "withdraw",
+        args: [BigInt(montoWithdraw), connectedAddress, connectedAddress],
+      });
+    } catch (e) {
+      console.error("Error setting greeting:", e);
+    }
+  };
+  const requestDelayedUnstake = async () => {
+    try {
+      await writeStaking({
+        functionName: "withdraw",
+        args: [BigInt(montoWithdraw), connectedAddress, connectedAddress],
+      });
+    } catch (e) {
+      console.error("Error setting greeting:", e);
+    }
+  };
+
+  const completeWithdraw = async () => {
+    try {
+      await writeWithdrawal({
+        functionName: "completeWithdraw",
+      });
+    } catch (e) {
+      console.error("Error setting greeting:", e);
+    }
+  };
+
+  // Getting deposito minimo
+  const { data: pendingWithdraws } = useScaffoldReadContract({
+    contractName: "Withdrawal",
+    functionName: "pendingWithdraws",
+    args: [connectedAddress],
+  });
+
+  // Getting deposito minimo
+  const { data: minDeposit } = useScaffoldReadContract({
+    contractName: "Staking",
+    functionName: "MIN_DEPOSIT",
+  });
+
+  // Obteniendo total depositado en Stake
+  const { data: totalSupply } = useScaffoldReadContract({
+    contractName: "Staking",
+    functionName: "totalSupply",
+  });
+
+  // Obteniendo total depositado en Liquid Unstake Pool
+  const { data: totalDepositedPool } = useScaffoldReadContract({
+    contractName: "LiquidUnstakePool",
+    functionName: "balanceOf",
+    args: [connectedAddress],
+  });
+
+  // Obteniendo tu saldo mpETH
+  const { data: mpETHBalance } = useScaffoldReadContract({
+    contractName: "Staking",
+    functionName: "balanceOf",
+    args: [connectedAddress],
+  });
+
+  // Obteniendo mpETH to ETH
+  const { data: mpETHtoETH } = useScaffoldReadContract({
+    contractName: "Staking",
+    functionName: "convertToAssets",
+    args: [parseEther("1")],
+  });
 
   return (
     <>
       <div className="flex items-center flex-col flex-grow pt-10">
-        <div className="px-5">
-          <h1 className="text-center">
-            <span className="block text-2xl mb-2">Welcome to</span>
-            <span className="block text-4xl font-bold">Scaffold-ETH 2</span>
-          </h1>
-          <div className="flex justify-center items-center space-x-2 flex-col sm:flex-row">
-            <p className="my-2 font-medium">Connected Address:</p>
-            <Address address={connectedAddress} />
-          </div>
-          <p className="text-center text-lg">
-            Get started by editing{" "}
-            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-              packages/nextjs/app/page.tsx
-            </code>
-          </p>
-          <p className="text-center text-lg">
-            Edit your smart contract{" "}
-            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-              YourContract.sol
-            </code>{" "}
-            in{" "}
-            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-              packages/hardhat/contracts
-            </code>
-          </p>
-        </div>
+        <div className="card bg-primary text-primaru-content">
+          <div className="card-body">
+            <h1>MetaPool Staking LST</h1>
+            <div className="flex flex-row items-center justify-center gap-4">
+              <div className="flex flex-col items-center">
+                <div className="text-2xl">Depósito Mínimo</div>
+                <div className="text-3xl">{formatEther(minDeposit || BigInt(0))}</div>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="text-2xl">Total Depositado</div>
+                <div className="text-3xl">{formatEther(totalSupply || BigInt(0))}</div>
+              </div>
+            </div>
+            <div className="flex flex-row items-center justify-center gap-4">
+              <div className="flex flex-col items-center">
+                <div className="text-2xl">tu saldo mpETH</div>
+                <div className="text-3xl">{formatEther(mpETHBalance || BigInt(0))}</div>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="text-2xl">mpETH to ETH</div>
+                <div className="text-3xl">{formatEther(mpETHtoETH || BigInt(0))}</div>
+              </div>
+            </div>
+            <div className="flex flex-row items-center justify-center gap-4">
+              <div className="flex flex-col items-center">
+                <div className="text-2xl">Total depositado Pool</div>
+                <div className="text-3xl">{formatEther(totalDepositedPool || BigInt(0))}</div>
+              </div>
+            </div>
 
-        <div className="flex-grow bg-base-300 w-full mt-16 px-8 py-12">
-          <div className="flex justify-center items-center gap-12 flex-col sm:flex-row">
-            <div className="flex flex-col bg-base-100 px-10 py-10 text-center items-center max-w-xs rounded-3xl">
-              <BugAntIcon className="h-8 w-8 fill-secondary" />
-              <p>
-                Tinker with your smart contract using the{" "}
-                <Link href="/debug" passHref className="link">
-                  Debug Contracts
-                </Link>{" "}
-                tab.
-              </p>
+            <label>Monto depósito</label>
+            <IntegerInput
+              value={montoDeposito}
+              onChange={updatedTxValue => {
+                setMontoDeposito(updatedTxValue);
+              }}
+              placeholder="value (wei)"
+            />
+            <button
+              className="btn w-full text-2xl"
+              onClick={() => {
+                stake();
+              }}
+            >
+              Stake
+            </button>
+            <button
+              className="btn w-full text-2xl"
+              onClick={() => {
+                stakeLiquidUnstakePool();
+              }}
+            >
+              Stake Liquidity
+            </button>
+
+            {/* Retiro */}
+            <div className="flex flex-row items-center justify-center gap-4">
+              <div className="flex flex-col items-center">
+                <div className="text-2xl">Retiro Pendiente</div>
+                <div className="text-3xl">{formatEther(pendingWithdraws?.[0] || BigInt(0))}</div>
+              </div>
             </div>
-            <div className="flex flex-col bg-base-100 px-10 py-10 text-center items-center max-w-xs rounded-3xl">
-              <MagnifyingGlassIcon className="h-8 w-8 fill-secondary" />
-              <p>
-                Explore your local transactions with the{" "}
-                <Link href="/blockexplorer" passHref className="link">
-                  Block Explorer
-                </Link>{" "}
-                tab.
-              </p>
-            </div>
+            <label>Monto Retiro</label>
+            <IntegerInput value={montoWithdraw} onChange={e => setMontoWithdraw(e)} placeholder="Amount" />
+            <button className="btn w-full" onClick={() => withdrawLiquidityUnstake()}>
+              Fast Unstake
+            </button>
+            <button className="btn w-full" onClick={() => requestDelayedUnstake()}>
+              Solicitar Delayed Unstake
+            </button>
+            <button className="btn w-full" onClick={() => completeWithdraw()}>
+              Finalizar Delayed Unstake
+            </button>
           </div>
         </div>
       </div>
